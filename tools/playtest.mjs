@@ -814,7 +814,7 @@ try {
 
   // ------------------------------------------------------------------ 11. 牌面预览页
   await setViewport({ width: 1280, height: 900 });
-  await cdp.send('Page.navigate', { url: `${new URL(PAGE_URL).origin}/cards.html` });
+  await cdp.send('Page.navigate', { url: new URL('cards.html', PAGE_URL).href });
   await delay(1600);
   const gallery = await evaluate(`(() => {
     const canvases = [...document.querySelectorAll('figure canvas')];

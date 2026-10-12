@@ -4,6 +4,17 @@
 三种难度、拖拽与点击双操作、撤销/提示/双击归位、完整音效与背景音乐（全部实时合成，不依赖任何音频文件）。
 牌面使用现成的**标准扑克牌素材**（CC BY 3.0，见下），不是手绘的。
 
+## 在线地址
+
+**▶ https://ccyff.github.io/spider-solitaire/** —— 手机浏览器直接打开即可玩，也可以「添加到主屏幕」当 App 用。
+
+| | |
+| --- | --- |
+| 全牌面预览 | https://ccyff.github.io/spider-solitaire/cards.html |
+| 源码仓库 | https://github.com/ccyff/spider-solitaire |
+| 托管 | GitHub Pages（免费），站点文件在 `gh-pages` 分支 |
+| 更新 | 改完代码执行 `pwsh tools/deploy-gh-pages.ps1`，几十秒后线上即为最新版 |
+
 | 开局 | 牌桌 |
 | --- | --- |
 | ![开局面板](docs/screenshots/start-panel.png) | ![牌桌](docs/screenshots/tableau-desktop.png) |
