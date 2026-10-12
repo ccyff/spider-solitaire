@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#061c16" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b3b2e'/%3E%3Ctext x='32' y='45' font-size='40' text-anchor='middle' fill='%23e8c37a'%3E%E2%99%A0%3C/text%3E%3C/svg%3E"
+    />
+    <title>牌面预览 · 蜘蛛纸牌</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --gold: #e8c37a;
+      }
+      body {
+        margin: 0;
+        padding: 22px 18px 60px;
+        background: radial-gradient(120% 90% at 50% 0%, #14604b 0%, #0b3b2e 42%, #061c16 100%);
+        color: #f4ede1;
+        font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        letter-spacing: 0.1em;
+      }
+      p {
+        margin: 0 0 20px;
+        font-size: 13px;
+        color: #9fb5ab;
+      }
+      h2 {
+        margin: 26px 0 10px;
+        font-size: 13px;
+        letter-spacing: 0.24em;
+        color: var(--gold);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+        gap: 12px;
+      }
+      figure {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+      }
+      canvas {
+        width: 100%;
+        max-width: 108px;
+        height: auto;
+        border-radius: 8px;
+        display: block;
+      }
+      figcaption {
+        font-size: 11px;
+        color: #9fb5ab;
+        font-variant-numeric: tabular-nums;
+      }
+      a {
+        color: var(--gold);
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/cards-DiH8bqs6.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/types-CFQhqIFX.js">
+  </head>
+  <body>
+    <h1>牌面预览</h1>
+    <p>
+      全部 52 张牌面都是运行时用 Canvas 2D 画出来的，没有任何图片资源。J / Q / K 采用传统扑克牌的
+      「双头」画法：对角线分割、上下两位镜像的半身像。 · <a href="./">返回牌桌</a>
+    </p>
+    <div id="gallery"></div>
+  </body>
+</html>
