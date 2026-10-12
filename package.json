@@ -1,0 +1,22 @@
+{
+  "name": "spider-solitaire",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "H5 蜘蛛纸牌 - Phaser 3 + TypeScript + Vite",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "test": "vitest run",
+    "playtest": "node tools/playtest.mjs"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.1.7",
+    "vitest": "^3.2.4"
+  }
+}

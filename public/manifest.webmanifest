@@ -1,0 +1,19 @@
+{
+  "name": "蜘蛛纸牌 · Spider Solitaire",
+  "short_name": "蜘蛛纸牌",
+  "description": "手机上的经典蜘蛛纸牌：三种难度、拖拽与点选双操作、撤销提示、实时合成音效。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#061c16",
+  "theme_color": "#061c16",
+  "icons": [
+    {
+      "src": "./assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

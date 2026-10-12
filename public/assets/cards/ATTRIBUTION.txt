@@ -1,0 +1,22 @@
+牌面素材授权说明 / Card artwork attribution
+==========================================
+
+本项目使用的 52 张标准扑克牌面与牌背，来自：
+
+  Playing Cards (Free Game Assets 08)
+  Author : Ryan Dansie / Iron Star Media
+  Source : https://opengameart.org/content/playing-cards-0
+  License: Creative Commons Attribution 3.0 (CC BY 3.0)
+           https://creativecommons.org/licenses/by/3.0/
+
+原始素材为 768x1063 的单张 PNG，本项目做了以下处理：
+
+  1. 选取 Cards/Classic 一套 + Backs/Card-Back-04 牌背；
+  2. 等比缩放并裁切为 194x269（格内留 6px 放投影），
+     拼成 13 列 x 5 行的图集 atlas.png（2600x1385）；
+  3. 每张牌下方叠了一层很淡的黑色投影，让牌在桌面上有立体感。
+
+处理脚本见 tools/build-card-atlas.ps1。
+
+依照 CC BY 3.0 的要求，使用/分发本项目时请保留上述署名信息
+（项目中已同时写在 README 与「玩法说明」面板里）。
