@@ -16,7 +16,7 @@ const PORT = Number(process.env.CDP_PORT ?? 9333);
 const PAGE_URL = process.argv[2] ?? 'http://127.0.0.1:4173/';
 const SHOTS = '.playtest/shots';
 const DESKTOP = { width: 1440, height: 900 };
-const MOBILE = { width: 390, height: 844, mobile: true };
+const MOBILE = { width: 390, height: 844, mobile: true, dpr: 3 };
 
 mkdirSync(SHOTS, { recursive: true });
 
@@ -148,7 +148,7 @@ try {
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: size.width,
       height: size.height,
-      deviceScaleFactor: 1,
+      deviceScaleFactor: size.dpr ?? 1,
       mobile: Boolean(size.mobile),
     });
   };
@@ -214,6 +214,8 @@ try {
       const st = window.__spider.state();
       const l = s.layout;
       const rect = document.querySelector('#stage canvas').getBoundingClientRect();
+      // 画布是按设备像素渲染的：布局坐标要除以 dpr 才是 CSS 视口坐标
+      const dpr = s.scale.width / s.scale.displaySize.width;
       const column = st.columns[${col}];
       let y = l.columnTopY;
       for (let i = 0; i < ${index}; i += 1) {
@@ -221,14 +223,19 @@ try {
       }
       if (${JSON.stringify(kind)} === 'card') y += l.fanUp * 0.45;
       if (${JSON.stringify(kind)} === 'bottom') y = l.columnTopY + l.cardH / 2;
-      return { x: rect.left + l.columnX[${col}], y: rect.top + y };
+      return { x: rect.left + l.columnX[${col}] / dpr, y: rect.top + y / dpr };
     })()`);
 
   const stockPoint = () =>
     evaluate(`(() => {
-      const l = window.__spider.scene.layout;
+      const s = window.__spider.scene;
+      const l = s.layout;
+      const dpr = s.scale.width / s.scale.displaySize.width;
       const rect = document.querySelector('#stage canvas').getBoundingClientRect();
-      return { x: rect.left + l.stock.x + l.stock.w / 2, y: rect.top + l.stock.y + l.stock.h / 2 };
+      return {
+        x: rect.left + (l.stock.x + l.stock.w / 2) / dpr,
+        y: rect.top + (l.stock.y + l.stock.h / 2) / dpr,
+      };
     })()`);
 
   /** 先取按钮位置，再发真实鼠标事件——和真人点击走同一条路径（也才会触发音频解锁） */
@@ -834,6 +841,8 @@ try {
       .filter((b) => b.w < 44 || b.h < 44);
     const deal = document.querySelector('.dock__deal');
     const scene = window.__spider.scene;
+    const canvas = document.querySelector('#stage canvas');
+    const rect = canvas.getBoundingClientRect();
     return {
       viewport: [window.innerWidth, window.innerHeight],
       buttons: buttons.length,
@@ -843,12 +852,24 @@ try {
       cardW: Math.round(scene.layout.cardW),
       cardH: Math.round(scene.layout.cardH),
       columns: scene.layout.columnX.length,
+      devicePixelRatio: window.devicePixelRatio,
+      canvasBacking: [canvas.width, canvas.height],
+      canvasCss: [Math.round(rect.width), Math.round(rect.height)],
+      backingRatio: +(canvas.width / rect.width).toFixed(2),
     };
   })()`);
   record(
     '手机竖屏：牌面明显变大（宽 ≥ 60px）且只有 5 列',
-    mobileUi.cardW >= 60 && mobileUi.columns === 5,
-    `牌面 ${mobileUi.cardW}x${mobileUi.cardH}，${mobileUi.columns} 列`,
+    mobileUi.columns === 5 && mobileUi.cardW / (mobileUi.devicePixelRatio || 1) >= 60,
+    `牌面 ${mobileUi.cardW}x${mobileUi.cardH} 画布像素（≈${Math.round(mobileUi.cardW / mobileUi.devicePixelRatio)} CSS px），${mobileUi.columns} 列`,
+  );
+  record(
+    '手机（DPR 3）：画布按设备像素渲染，牌面接近 1:1 不虚',
+    mobileUi.backingRatio >= 2.9 &&
+      mobileUi.canvasBacking[0] / mobileUi.devicePixelRatio >= mobileUi.canvasCss[0] - 2 &&
+      // 牌面素材每张 194px 宽，渲染出来的物理宽度要贴近它，才是「不拉伸 / 不发虚」
+      Math.abs(mobileUi.cardW - 194) / 194 <= 0.25,
+    `backingRatio=${mobileUi.backingRatio}，画布 ${mobileUi.canvasBacking.join('x')}，CSS ${mobileUi.canvasCss.join('x')}，牌面 ${mobileUi.cardW}px（素材 194px）`,
   );
   record(
     '手机端所有按钮都 ≥ 44px（拇指不易误触）',

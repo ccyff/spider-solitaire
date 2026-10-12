@@ -257,7 +257,7 @@ export class GameScene extends Phaser.Scene {
 
   private applyLayout(): void {
     const columns = this.spider ? this.spider.state.columns : [];
-    this.layout = computeLayout(this.scale.width, this.scale.height, columns);
+    this.layout = computeLayout(this.scale.width, this.scale.height, columns, this.pixelRatio);
     const { cardW, cardH } = this.layout;
     const columnHeight = Math.max(90, this.layout.tableauBottom - this.layout.columnTopY + 16);
 
@@ -304,6 +304,15 @@ export class GameScene extends Phaser.Scene {
   private onResize(): void {
     this.applyLayout();
     if (this.spider) this.syncBoard({ instant: true });
+  }
+
+  /**
+   * 画布按设备像素渲染（retina），所以「CSS 像素」写的常量要乘上这个比例。
+   * 例如浮字 30px、粒子速度这些，否则在 3 倍屏上会小得看不见。
+   */
+  private get pixelRatio(): number {
+    const displayWidth = this.scale.displaySize?.width ?? 0;
+    return displayWidth > 0 ? this.scale.width / displayWidth : 1;
   }
 
   // ------------------------------------------------------------------ 状态同步
@@ -733,7 +742,7 @@ export class GameScene extends Phaser.Scene {
     suits.forEach((suit, i) => {
       bus.emit('sets:completed', { suit, total: firstIndex + i + 1 });
     });
-    this.floatText(rect.x + rect.w / 2, rect.y + rect.h + 34, '+100', '#ffe6a6');
+    this.floatText(rect.x + rect.w / 2, rect.y + rect.h + 34 * this.pixelRatio, '+100', '#ffe6a6');
     this.time.delayedCall(120, () => this.burst(rect.x + rect.w / 2, rect.y + rect.h / 2, 28));
 
     this.time.delayedCall(760, () => {
@@ -814,10 +823,11 @@ export class GameScene extends Phaser.Scene {
 
   private nudge(sprite: Phaser.GameObjects.Image): void {
     const baseX = sprite.x;
+    const amount = 7 * this.pixelRatio;
     this.tweens.killTweensOf(sprite);
     this.tweens.add({
       targets: sprite,
-      x: baseX + 7,
+      x: baseX + amount,
       duration: 55,
       yoyo: true,
       repeat: 1,
@@ -857,10 +867,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private burst(x: number, y: number, count: number): void {
+    const dpr = this.pixelRatio;
     const emitter = this.add.particles(x, y, TEX.spark, {
-      speed: { min: 60, max: 280 },
+      speed: { min: 60 * dpr, max: 280 * dpr },
       angle: { min: 0, max: 360 },
-      scale: { start: 0.6, end: 0 },
+      scale: { start: 0.6 * dpr, end: 0 },
       alpha: { start: 1, end: 0 },
       lifespan: { min: 320, max: 760 },
       blendMode: Phaser.BlendModes.ADD,
@@ -872,10 +883,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private floatText(x: number, y: number, text: string, color: string): void {
+    const dpr = this.pixelRatio;
     const label = this.add
       .text(x, y, text, {
         fontFamily: UI_FONT,
-        fontSize: '30px',
+        fontSize: `${Math.round(30 * dpr)}px`,
         color,
         fontStyle: 'bold',
       })
@@ -884,7 +896,7 @@ export class GameScene extends Phaser.Scene {
       .setShadow(0, 3, 'rgba(0,0,0,0.55)', 6);
     this.tweens.add({
       targets: label,
-      y: y - 70,
+      y: y - 70 * dpr,
       alpha: 0,
       duration: 900,
       ease: 'Cubic.easeOut',

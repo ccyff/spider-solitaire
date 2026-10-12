@@ -26,10 +26,12 @@ export interface BoardLayout {
   padTop: number;
 }
 
-/** 5 列之后牌可以放得很大，这里给桌面端留个上限（牌面素材是 194px 宽，别拉太糊） */
-const MAX_CARD_W = 132;
-/** 下限取得足够小，保证所有列在最窄的手机上也能完整放下（宁可小，也不要溢出看不见） */
-const MIN_CARD_W = 22;
+/**
+ * 下面两个上限/下限都以「CSS 像素」为单位：实际布局要乘上 devicePixelRatio，
+ * 因为画布现在是按设备像素渲染的（手机上非常关键，否则整张牌桌都会发虚）。
+ */
+const MAX_CARD_W = 112;
+const MIN_CARD_W = 24;
 const GAP_RATIO = 0.13;
 const FAN_UP_RATIO = 0.27;
 const FAN_DOWN_RATIO = 0.135;
@@ -38,10 +40,15 @@ const FAN_DOWN_RATIO = 0.135;
  * 根据可视区域算出整张牌桌的几何布局。
  * 列宽铺满宽度，纵向偏移会根据最长的一列自动压缩，保证任何屏幕都完整可见。
  */
-export function computeLayout(width: number, height: number, columns: Card[][]): BoardLayout {
-  const padX = clamp(width * 0.018, 6, 26);
-  const padTop = clamp(height * 0.018, 6, 20);
-  const padBottom = clamp(height * 0.02, 8, 24);
+export function computeLayout(
+  width: number,
+  height: number,
+  columns: Card[][],
+  dpr = 1,
+): BoardLayout {
+  const padX = clamp(width * 0.018, 6 * dpr, 26 * dpr);
+  const padTop = clamp(height * 0.018, 6 * dpr, 20 * dpr);
+  const padBottom = clamp(height * 0.02, 8 * dpr, 24 * dpr);
 
   const availW = width - padX * 2;
   const rawCardW = availW / (COLUMN_COUNT + (COLUMN_COUNT - 1) * GAP_RATIO);
@@ -51,11 +58,11 @@ export function computeLayout(width: number, height: number, columns: Card[][]):
    * 「一张牌 + 最小叠放间距」，否则横屏或矮窗口里牌会画到屏幕外。
    */
   const verticalBudget = height - padTop - padBottom;
-  const maxCardHByHeight = Math.max(60, (verticalBudget - 24) / 2.45);
+  const maxCardHByHeight = Math.max(60 * dpr, (verticalBudget - 24 * dpr) / 2.45);
   const cardW = clamp(
     Math.min(rawCardW, maxCardHByHeight / CARD_RATIO),
-    MIN_CARD_W,
-    MAX_CARD_W,
+    MIN_CARD_W * dpr,
+    MAX_CARD_W * dpr,
   );
   const cardH = cardW * CARD_RATIO;
   const gapX = cardW * GAP_RATIO;

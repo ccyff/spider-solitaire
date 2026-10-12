@@ -307,6 +307,20 @@ export function createApp(root: HTMLElement): void {
   };
 
   // ---------------------------------------------------------------- Phaser
+  /**
+   * 画布必须按「设备像素」渲染，再用 CSS 缩回逻辑尺寸。
+   * 否则在 DPR 2~3 的手机上，画布只有 1 倍分辨率却被浏览器放大 2~3 倍，整张牌桌都会发虚。
+   */
+  const PIXEL_RATIO_CAP = 3;
+  const readRatio = (): number => Math.min(window.devicePixelRatio || 1, PIXEL_RATIO_CAP);
+  const readStage = (): { w: number; h: number } => ({
+    w: Math.max(1, stage.clientWidth),
+    h: Math.max(1, stage.clientHeight),
+  });
+
+  let ratio = readRatio();
+  const stageSize = readStage();
+
   const phaser = new Phaser.Game({
     type: Phaser.AUTO,
     parent: stage,
@@ -314,9 +328,10 @@ export function createApp(root: HTMLElement): void {
     banner: false,
     audio: { noAudio: true },
     scale: {
-      mode: Phaser.Scale.RESIZE,
-      width: '100%',
-      height: '100%',
+      mode: Phaser.Scale.NONE,
+      width: Math.round(stageSize.w * ratio),
+      height: Math.round(stageSize.h * ratio),
+      zoom: 1 / ratio,
       autoRound: true,
     },
     render: {
@@ -325,6 +340,21 @@ export function createApp(root: HTMLElement): void {
     },
     scene: [new BootScene(), scene],
   });
+
+  /** NONE 模式下画布不会自己跟随父容器，尺寸变化时手动同步 */
+  const syncViewport = (): void => {
+    const nextRatio = readRatio();
+    if (Math.abs(nextRatio - ratio) > 0.01) {
+      ratio = nextRatio;
+      phaser.scale.setZoom(1 / ratio);
+    }
+    const size = readStage();
+    phaser.scale.resize(Math.round(size.w * ratio), Math.round(size.h * ratio));
+  };
+  window.addEventListener('resize', syncViewport);
+  window.addEventListener('orientationchange', () => window.setTimeout(syncViewport, 150));
+  window.visualViewport?.addEventListener('resize', syncViewport);
+
   scene.attachGame(current);
   hud.update(current.state, hudFlags());
 
