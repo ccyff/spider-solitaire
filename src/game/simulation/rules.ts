@@ -1,4 +1,4 @@
-import type { Card, GameState, Suit } from './types';
+import { TOTAL_SETS, type Card, type GameState, type Suit } from './types';
 
 export type MoveRejection =
   | 'same-column'
@@ -65,7 +65,7 @@ export function dealBlockReason(state: GameState): MoveRejection | null {
 }
 
 export function isWon(state: GameState): boolean {
-  return state.sets.length >= 8;
+  return state.sets.length >= TOTAL_SETS;
 }
 
 /** 全局是否还有任何合法移动（用于「无路可走」提示） */

@@ -4,7 +4,7 @@ import { bus } from '../../core/bus';
 import { haptic } from '../../core/haptics';
 import { SpiderGame } from '../../game/simulation/game';
 import { canPickUp } from '../../game/simulation/rules';
-import type { Card, Suit } from '../../game/simulation/types';
+import { COLUMN_COUNT, TOTAL_SETS, type Card, type Suit } from '../../game/simulation/types';
 import { CARD_ORIGIN_X, CARD_ORIGIN_Y, CELL_SCALE_X, CELL_SCALE_Y, TEX } from '../cardArt';
 import { computeLayout, type BoardLayout } from '../layout';
 
@@ -190,7 +190,7 @@ export class GameScene extends Phaser.Scene {
   // ------------------------------------------------------------------ 静态物件
 
   private buildStaticObjects(): void {
-    for (let i = 0; i < 10; i += 1) {
+    for (let i = 0; i < COLUMN_COUNT; i += 1) {
       const slot = this.add.image(0, 0, TEX.slot).setOrigin(0, 0).setDepth(DEPTH.slot);
       this.columnSlots.push(slot);
       const zone = this.add.zone(0, 0, 10, 10).setOrigin(0, 0);
@@ -199,7 +199,7 @@ export class GameScene extends Phaser.Scene {
       this.columnZones.push(zone);
     }
 
-    for (let i = 0; i < 8; i += 1) {
+    for (let i = 0; i < TOTAL_SETS; i += 1) {
       this.foundationSlots.push(
         this.add.image(0, 0, TEX.foundation).setOrigin(0, 0).setDepth(DEPTH.slot).setAlpha(0.55),
       );

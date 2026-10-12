@@ -29,6 +29,7 @@ function query<T extends HTMLElement>(root: HTMLElement, selector: string): T {
 /** 组装整个游戏：音频、DOM UI、Phaser 场景、存档与快捷键 */
 export function createApp(root: HTMLElement): void {
   const hudRoot = query(root, '#hud-root');
+  const dockRoot = query(root, '#dock-root');
   const stage = query(root, '#stage');
   const overlayLayer = query(root, '#overlay-layer');
   const toastLayer = query(root, '#toast-layer');
@@ -52,6 +53,13 @@ export function createApp(root: HTMLElement): void {
   let resumable = saved !== null && saved.state.status === 'playing';
   if (!resumable) storage.clearGame();
   let current = resumable && saved ? saved : SpiderGame.newGame(suitCount);
+
+  /** 顶栏/底栏需要的一小撮派生信息 */
+  const hudFlags = (): { canUndo: boolean; canDeal: boolean; dealsLeft: number } => ({
+    canUndo: current.canUndo,
+    canDeal: current.remainingDeals > 0,
+    dealsLeft: current.remainingDeals,
+  });
 
   const scene = new GameScene();
 
@@ -161,7 +169,7 @@ export function createApp(root: HTMLElement): void {
   // ---------------------------------------------------------------- 对局管理
   const attachCurrent = (): void => {
     scene.attachGame(current);
-    hud.update(current.state, { canUndo: current.canUndo, canDeal: current.remainingDeals > 0 });
+    hud.update(current.state, hudFlags());
     storage.saveGame(current.serialize());
   };
 
@@ -195,6 +203,7 @@ export function createApp(root: HTMLElement): void {
   // ---------------------------------------------------------------- DOM UI
   const hud = new Hud(
     hudRoot,
+    dockRoot,
     {
       onDeal: () => scene.requestDeal(),
       onUndo: () => scene.requestUndo(),
@@ -208,7 +217,7 @@ export function createApp(root: HTMLElement): void {
 
   // ---------------------------------------------------------------- 事件订阅
   bus.on('state:changed', ({ state }) => {
-    hud.update(state, { canUndo: current.canUndo, canDeal: current.remainingDeals > 0 });
+    hud.update(state, hudFlags());
     if (state.status === 'playing') storage.saveGame(JSON.stringify(state));
   });
 
@@ -317,7 +326,7 @@ export function createApp(root: HTMLElement): void {
     scene: [new BootScene(), scene],
   });
   scene.attachGame(current);
-  hud.update(current.state, { canUndo: current.canUndo, canDeal: current.remainingDeals > 0 });
+  hud.update(current.state, hudFlags());
 
   // Phaser 若被推迟到 DOMContentLoaded 之后启动，这里兜底
   window.setTimeout(openStartOnce, 60);

@@ -141,10 +141,10 @@ export function openStartPanel(overlays: Overlays, options: StartPanelOptions): 
   const noteLine = el('p', { class: 'panel__subtitle' });
 
   const describe = (): void => {
-    const notes: Record<SuitCount, string> = {
-      1: '整副牌都是黑桃，只要点数连得上就行，适合第一次玩。',
-      2: '黑桃与红桃交错，需要留意花色是否连成一段。',
-      4: '四种花色齐全，只有同花色的连续牌才能整段搬动。',
+  const notes: Record<SuitCount, string> = {
+      1: '52 张全是黑桃，只要点数连得上就行，最适合第一次玩。',
+      2: '黑桃与红桃各 2 组，需要留意花色是否连成一段。',
+      4: '四种花色各 1 组，只有同花色的连续牌才能整段搬动，最难。',
     };
     const best = options.bestFor(selected);
     noteLine.textContent = best > 0 ? `${notes[selected]} 该难度最高分 ${best}。` : notes[selected];
@@ -207,7 +207,7 @@ export function openStartPanel(overlays: Overlays, options: StartPanelOptions): 
     el('h1', { class: 'panel__title', text: '蜘蛛纸牌' }),
     el('p', {
       class: 'panel__subtitle',
-      text: '把桌面上的牌整理成 8 组同花 K→A。拖动或用点击选牌，双击任意明牌可以自动归位。',
+      text: '把 5 列牌整理成 4 组同花 K→A。拖动或用点击选牌，双击任意明牌可以自动归位。',
     }),
     el('div', { class: 'panel__section-title', text: '选择难度' }),
     list,
@@ -244,7 +244,7 @@ export function openHelpPanel(overlays: Overlays): void {
       el('div', { class: 'panel__eyebrow', text: 'How to play' }),
       el('h2', { class: 'panel__title', text: '玩法说明' }),
       el('ol', { class: 'rules' }, [
-        el('li', { html: '桌面共 <b>10 列</b>，目标是把所有牌整理成 <b>8 组同花 K→A</b>。' }),
+        el('li', { html: '桌面共 <b>5 列</b>，目标是把所有牌整理成 <b>4 组同花 K→A</b>（一副牌）。' }),
         el('li', { html: '可以整段搬动<b>同花色且连续递减</b>的牌；落点必须比它大 1 点（花色不限）。' }),
         el('li', { html: '空列能放任意牌或任意合法的一段牌，留空格是这门牌的关键技巧。' }),
         el('li', { html: '点左上角牌堆或按 <b>空格</b> 发一轮牌，每列各加一张明牌。' }),
@@ -255,7 +255,7 @@ export function openHelpPanel(overlays: Overlays): void {
       ]),
       el('p', {
         class: 'panel__credit',
-        html: '牌面素材：Playing Cards by Ryan Dansie / Iron Star Media，CC BY 3.0（via OpenGameArt）。',
+        html: '牌面素材：Playing Cards by Ryan Dansie / Iron Star Media（CC BY 3.0，via OpenGameArt）；牌背：Atlas deck back by Dmitry Fomin（CC0）。',
       }),
       el('div', { class: 'panel__actions' }, [button('知道了', 'btn btn--gold', close)]),
     ],

@@ -1,5 +1,5 @@
 import { CARD_RATIO } from './cardArt';
-import type { Card } from '../game/simulation/types';
+import { COLUMN_COUNT, TOTAL_SETS, type Card } from '../game/simulation/types';
 
 export interface SlotRect {
   x: number;
@@ -26,8 +26,9 @@ export interface BoardLayout {
   padTop: number;
 }
 
-const MAX_CARD_W = 116;
-/** 下限取得足够小，保证 10 列在最窄的手机上也能完整放下（宁可小，也不要溢出看不见） */
+/** 5 列之后牌可以放得很大，这里给桌面端留个上限（牌面素材是 194px 宽，别拉太糊） */
+const MAX_CARD_W = 132;
+/** 下限取得足够小，保证所有列在最窄的手机上也能完整放下（宁可小，也不要溢出看不见） */
 const MIN_CARD_W = 22;
 const GAP_RATIO = 0.13;
 const FAN_UP_RATIO = 0.27;
@@ -43,27 +44,38 @@ export function computeLayout(width: number, height: number, columns: Card[][]):
   const padBottom = clamp(height * 0.02, 8, 24);
 
   const availW = width - padX * 2;
-  const rawCardW = availW / (10 + 9 * GAP_RATIO);
-  const cardW = clamp(rawCardW, MIN_CARD_W, MAX_CARD_W);
+  const rawCardW = availW / (COLUMN_COUNT + (COLUMN_COUNT - 1) * GAP_RATIO);
+
+  /**
+   * 高度也要卡住：顶栏（发牌堆/收牌位）要占一张牌高，牌列至少要能放下
+   * 「一张牌 + 最小叠放间距」，否则横屏或矮窗口里牌会画到屏幕外。
+   */
+  const verticalBudget = height - padTop - padBottom;
+  const maxCardHByHeight = Math.max(60, (verticalBudget - 24) / 2.45);
+  const cardW = clamp(
+    Math.min(rawCardW, maxCardHByHeight / CARD_RATIO),
+    MIN_CARD_W,
+    MAX_CARD_W,
+  );
   const cardH = cardW * CARD_RATIO;
   const gapX = cardW * GAP_RATIO;
   const pitch = cardW + gapX;
-  const boardW = cardW * 10 + gapX * 9;
+  const boardW = cardW * COLUMN_COUNT + gapX * (COLUMN_COUNT - 1);
   const boardLeft = (width - boardW) / 2;
 
   const columnX: number[] = [];
-  for (let i = 0; i < 10; i += 1) {
+  for (let i = 0; i < COLUMN_COUNT; i += 1) {
     columnX.push(boardLeft + cardW / 2 + i * pitch);
   }
 
-  // 顶栏：左边发牌堆，右边 8 个收牌位（缩小到 0.62 倍，给牌面留空间）
+  // 顶栏：左边发牌堆，右边收牌位（缩小到 0.62 倍，给牌面留空间）
   const foundationScale = 0.62;
   const fw = cardW * foundationScale;
   const fh = cardH * foundationScale;
   const fGap = fw * 0.16;
   const foundations: SlotRect[] = [];
   const fRight = boardLeft + boardW;
-  for (let i = 7; i >= 0; i -= 1) {
+  for (let i = TOTAL_SETS - 1; i >= 0; i -= 1) {
     foundations.unshift({
       x: fRight - fw - i * (fw + fGap),
       y: padTop + (cardH - fh) / 2,
@@ -77,7 +89,11 @@ export function computeLayout(width: number, height: number, columns: Card[][]):
   const columnTopY = topRowY + cardH + clamp(cardH * 0.22, 8, 26);
   const tableauBottom = height - padBottom;
 
-  const { up, down } = fitFans(columns, cardH, tableauBottom - columnTopY);
+  const { up, down, maxExtra } = fitFans(columns, cardH, tableauBottom - columnTopY);
+
+  // 列变短以后，牌列会在下方留出大片空白：把整块牌列在剩余空间里略微靠上居中，更稳
+  const slack = Math.max(0, tableauBottom - columnTopY - (cardH + maxExtra));
+  const alignedTop = columnTopY + slack * 0.4;
 
   return {
     width,
@@ -85,7 +101,7 @@ export function computeLayout(width: number, height: number, columns: Card[][]):
     cardW,
     cardH,
     columnX,
-    columnTopY,
+    columnTopY: alignedTop,
     fanUp: up,
     fanDown: down,
     stock,
@@ -101,36 +117,43 @@ function fitFans(
   columns: Card[][],
   cardH: number,
   available: number,
-): { up: number; down: number } {
+): { up: number; down: number; maxExtra: number } {
   const baseUp = cardH * FAN_UP_RATIO;
   const baseDown = cardH * FAN_DOWN_RATIO;
   const minUp = cardH * 0.085;
   const minDown = cardH * 0.05;
 
-  let extraUnits = 0;
-  for (const column of columns) {
+  const stats = columns.map((column) => {
     let up = 0;
     let down = 0;
     for (let i = 0; i < column.length - 1; i += 1) {
       if (column[i].faceUp) up += 1;
       else down += 1;
     }
-    extraUnits = Math.max(extraUnits, (up * baseUp + down * baseDown) / cardH);
-  }
+    return { up, down };
+  });
+  const maxUnits = Math.max(
+    0,
+    ...stats.map((s) => s.up * FAN_UP_RATIO + s.down * FAN_DOWN_RATIO),
+  );
 
   const room = available - cardH;
-  if (extraUnits <= 0 || room <= 0) {
-    return { up: minUp, down: minDown };
+  let up = baseUp;
+  let down = baseDown;
+  if (maxUnits <= 0 || room <= 0) {
+    up = minUp;
+    down = minDown;
+  } else {
+    const needed = maxUnits * cardH;
+    if (needed > room) {
+      const k = room / needed;
+      up = Math.max(minUp, baseUp * k);
+      down = Math.max(minDown, baseDown * k);
+    }
   }
-  const needed = extraUnits * cardH;
-  if (needed <= room) {
-    return { up: baseUp, down: baseDown };
-  }
-  const k = room / needed;
-  return {
-    up: Math.max(minUp, baseUp * k),
-    down: Math.max(minDown, baseDown * k),
-  };
+
+  const maxExtra = Math.max(0, ...stats.map((s) => s.up * up + s.down * down));
+  return { up, down, maxExtra };
 }
 
 export function clamp(value: number, min: number, max: number): number {

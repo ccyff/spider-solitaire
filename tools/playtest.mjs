@@ -261,7 +261,8 @@ try {
         return y;
       })();
       const regions = {
-        face: { x: l.columnX[0] - l.cardW * 0.3, y: faceY + l.cardH * 0.3, w: l.cardW * 0.6, h: l.cardH * 0.5 },
+          // 取整张牌（含四角点数），这样哪怕是一张中间留白的 2 / A 也一定有墨
+          face: { x: l.columnX[0] - l.cardW / 2, y: faceY, w: l.cardW, h: l.cardH },
         back: { x: l.stock.x + l.stock.w * 0.2, y: l.stock.y + l.stock.h * 0.2, w: l.stock.w * 0.6, h: l.stock.h * 0.6 },
         felt: { x: l.width * 0.4, y: l.stock.y + l.stock.h * 0.25, w: l.width * 0.15, h: l.stock.h * 0.5 },
       };
@@ -281,11 +282,12 @@ try {
             if (a < 16) return 'transparent';
             if (r > 200 && g > 190 && b > 165) return 'ivory';
             if (r > 120 && r > g + 40 && r > b + 40) return 'red';
+            if (b > r + 25 && b > 110) return 'blue';
             if (r + g + b < 260) return 'dark';
             return 'other';
           };
           const scan = (region) => {
-            const counts = { transparent: 0, ivory: 0, red: 0, dark: 0, other: 0, total: 0 };
+            const counts = { transparent: 0, ivory: 0, red: 0, blue: 0, dark: 0, other: 0, total: 0 };
             const x0 = Math.max(0, Math.round(region.x));
             const y0 = Math.max(0, Math.round(region.y));
             const x1 = Math.min(c.width, Math.round(region.x + region.w));
@@ -297,9 +299,16 @@ try {
               }
             }
             const ratio = (key) => (counts.total ? +(counts[key] / counts.total).toFixed(3) : 0);
-            return { total: counts.total, transparent: ratio('transparent'), ivory: ratio('ivory'), dark: ratio('dark'), red: ratio('red') };
+            return {
+              total: counts.total,
+              transparent: ratio('transparent'),
+              ivory: ratio('ivory'),
+              dark: ratio('dark'),
+              red: ratio('red'),
+              blue: ratio('blue'),
+            };
           };
-          const overall = { transparent: 0, ivory: 0, dark: 0, red: 0, other: 0 };
+          const overall = { transparent: 0, ivory: 0, dark: 0, red: 0, blue: 0, other: 0 };
           for (let i = 0; i < data.length; i += 4) overall[classify(i)] += 1;
           const total = c.width * c.height;
           const metrics = {
@@ -383,8 +392,8 @@ try {
             right: Math.round(right),
             canvasW: Math.round(l.width),
             fits:
-              lowest <= l.tableauBottom + 1 &&
-              // 纹理格留了投影余量，精灵包围盒比看得见的牌面大一点，允许几像素误差
+              // 纹理格留了投影余量，精灵包围盒比看得见的牌面四周各大 1~3px，所以上下都给几像素容差
+              lowest <= l.tableauBottom + 5 &&
               highest >= l.columnTopY - 5 &&
               left >= -1 &&
               right <= l.width + 1,
@@ -392,6 +401,28 @@ try {
         })(),
       };
     })()`);
+
+  /**
+   * 5 列之后开局不一定马上就「有好走法」，没有就先发一轮再找。
+   * 走 scene.requestDeal() 而不是直接改模拟层，这样动画/同步都会正常跑。
+   */
+  const ensureHint = async () => {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const hint = await evaluate(
+        `(() => { const h = window.__spider.game().hint(); return h && { ...h }; })()`,
+      );
+      if (hint) return hint;
+      const dealt = await evaluate(`(() => {
+        const g = window.__spider.game();
+        if (g.remainingDeals === 0) return false;
+        window.__spider.scene.requestDeal();
+        return true;
+      })()`);
+      if (!dealt) return null;
+      await delay(800);
+    }
+    return null;
+  };
 
   // ------------------------------------------------------------------ 1. 开场
   await setViewport(DESKTOP);
@@ -567,8 +598,8 @@ try {
   await shoot('02-tableau');
   let info = await summarize();
   record(
-    '开局：54 张上桌、5 轮发牌、104 张守恒',
-    info.onTable === 54 && info.stock === 5 && info.total === 104,
+    '开局：27 张上桌（5 列）、5 轮发牌、52 张守恒',
+    info.onTable === 27 && info.stock === 5 && info.total === 52,
     JSON.stringify({ onTable: info.onTable, stock: info.stock, total: info.total }),
   );
   record('牌面纵向排布不溢出可视区域', info.overflow.fits, JSON.stringify(info.overflow));
@@ -576,13 +607,14 @@ try {
   // 像素级检查：牌面 / 牌背 / 绒布都真的画出来了
   const pixels = await samplePixels();
   record(
-    '卡面渲染正常（明牌区域是象牙白、牌堆区域是牌背色、空白区域透出绒布）',
+    '卡面渲染正常（明牌区是不透明卡面、牌堆区是蓝白牌背、空白区透出绒布）',
     // 明牌区：必须是不透明的卡面（真牌面有大量线稿，所以看「有墨」而不是「够白」）
     pixels.regions.face.transparent < 0.05 &&
       pixels.regions.face.ivory + pixels.regions.face.dark + pixels.regions.face.red > 0.6 &&
-      pixels.regions.face.dark + pixels.regions.face.red > 0.05 &&
-      pixels.regions.back.dark > 0.6 &&
-      pixels.regions.back.transparent < 0.2 &&
+      pixels.regions.face.dark + pixels.regions.face.red > 0.02 &&
+      // 牌背：新牌背是蓝白花纹，所以看「有不透明内容 + 明显的蓝」
+      pixels.regions.back.transparent < 0.05 &&
+      pixels.regions.back.blue > 0.1 &&
       pixels.regions.felt.transparent > 0.85,
     `${JSON.stringify(pixels.regions)} profile=${JSON.stringify(pixels.profile)}`,
   );
@@ -597,8 +629,9 @@ try {
   );
 
   // ------------------------------------------------------------------ 3. 点击选牌 + 点列落牌
-  const hintBefore = await evaluate(`(() => { const h = window.__spider.game().hint(); return h && { ...h }; })()`);
-  const movesBefore = info.moves;
+  const hintBefore = await ensureHint();
+  // 取一次最新的步数：ensureHint 里可能已经发过牌（发牌也算一步）
+  const movesBefore = (await summarize()).moves;
   if (hintBefore) {
     const from = await pointFor(hintBefore.from, hintBefore.index);
     const to = await pointFor(hintBefore.to, 0, 'bottom');
@@ -630,9 +663,7 @@ try {
     wrap('performMove', 'move');
     return true;
   })()`);
-  const dragHint = await evaluate(
-    `(() => { const g = window.__spider.game(); const h = g.hint(); return h && { ...h }; })()`,
-  );
+  const dragHint = await ensureHint();
   if (dragHint) {
     const before = (await summarize()).moves;
     const from = await pointFor(dragHint.from, dragHint.index);
@@ -718,7 +749,7 @@ try {
   const afterDeal = await summarize();
   record(
     '点牌堆发一轮：每列 +1 张、牌堆 -1 轮',
-    afterDeal.stock === beforeDeal.stock - 1 && afterDeal.onTable === beforeDeal.onTable + 10,
+    afterDeal.stock === beforeDeal.stock - 1 && afterDeal.onTable === beforeDeal.onTable + 5,
     JSON.stringify({ stock: afterDeal.stock, onTable: afterDeal.onTable }),
   );
   await shoot('06-after-deal');
@@ -729,6 +760,7 @@ try {
   record('撤销回退一次发牌', afterUndo.stock === beforeDeal.stock && afterUndo.onTable === beforeDeal.onTable);
 
   // ------------------------------------------------------------------ 7. 提示
+  await ensureHint();
   await clickButton('提示');
   await delay(400);
   const hintToast = (await summarize()).toast;
@@ -753,13 +785,13 @@ try {
   await evaluate(`(() => {
     let id = 9000;
     const card = (suit, rank, faceUp = true) => ({ id: id += 1, suit, rank, faceUp });
-    const columns = Array.from({ length: 10 }, () => []);
+    const columns = Array.from({ length: 5 }, () => []);
     for (let rank = 13; rank >= 2; rank -= 1) columns[0].push(card('S', rank));
     columns[1].push(card('S', 1));
-    for (let col = 2; col < 10; col += 1) columns[col].push(card('C', 8, false));
+    for (let col = 2; col < 5; col += 1) columns[col].push(card('C', 8, false));
     const state = {
       version: 1, suitCount: 4, seed: 1, columns, stock: [],
-      sets: ['H', 'D', 'C', 'S', 'H', 'D', 'C'],
+      sets: ['H', 'D', 'C'],
       score: 420, moves: 18, elapsedMs: 184000, status: 'playing',
     };
     window.__spider.load(JSON.stringify(state));
@@ -773,7 +805,7 @@ try {
   await shoot('09-completing-set');
   await delay(1600);
   const won = await summarize();
-  record('凑齐第 8 组后触发通关（+100 分）', won.sets === 8 && won.status === 'won', JSON.stringify({ sets: won.sets, status: won.status, score: won.score }));
+  record('凑齐第 4 组后触发通关（+100 分）', won.sets === 4 && won.status === 'won', JSON.stringify({ sets: won.sets, status: won.status, score: won.score }));
   record('通关面板自动弹出', won.overlay >= 1, `overlay=${won.overlay}`);
   await shoot('10-win-panel');
 
@@ -785,6 +817,52 @@ try {
   const mobile = await summarize();
   record('手机竖屏：牌面完整可见不溢出', mobile.overflow.fits, JSON.stringify(mobile.overflow));
   record('手机竖屏：画布尺寸跟随视口', mobile.canvas[0] <= 390 && mobile.canvas[0] > 300, JSON.stringify(mobile.canvas));
+
+  // 手机端可读性 / 可点性：牌要够大、所有按钮都要够大、发牌要在右下角
+  const mobileUi = await evaluate(`(() => {
+    const box = (node) => {
+      const r = node.getBoundingClientRect();
+      return {
+        w: Math.round(r.width), h: Math.round(r.height),
+        left: Math.round(r.left), right: Math.round(r.right),
+        top: Math.round(r.top), bottom: Math.round(r.bottom),
+      };
+    };
+    const buttons = [...document.querySelectorAll('button')].filter((b) => b.offsetParent !== null);
+    const tooSmall = buttons
+      .map((b) => ({ label: b.textContent.trim().slice(0, 8) || b.getAttribute('aria-label'), ...box(b) }))
+      .filter((b) => b.w < 44 || b.h < 44);
+    const deal = document.querySelector('.dock__deal');
+    const scene = window.__spider.scene;
+    return {
+      viewport: [window.innerWidth, window.innerHeight],
+      buttons: buttons.length,
+      tooSmall,
+      deal: deal ? box(deal) : null,
+      dealDisabled: deal ? deal.disabled : null,
+      cardW: Math.round(scene.layout.cardW),
+      cardH: Math.round(scene.layout.cardH),
+      columns: scene.layout.columnX.length,
+    };
+  })()`);
+  record(
+    '手机竖屏：牌面明显变大（宽 ≥ 60px）且只有 5 列',
+    mobileUi.cardW >= 60 && mobileUi.columns === 5,
+    `牌面 ${mobileUi.cardW}x${mobileUi.cardH}，${mobileUi.columns} 列`,
+  );
+  record(
+    '手机端所有按钮都 ≥ 44px（拇指不易误触）',
+    mobileUi.tooSmall.length === 0,
+    mobileUi.tooSmall.length ? JSON.stringify(mobileUi.tooSmall) : `共 ${mobileUi.buttons} 个按钮`,
+  );
+  record(
+    '发牌按钮位于屏幕右下角',
+    !!mobileUi.deal &&
+      mobileUi.deal.right >= mobileUi.viewport[0] - 16 &&
+      mobileUi.deal.bottom >= mobileUi.viewport[1] - 120 &&
+      mobileUi.deal.w >= 110,
+    JSON.stringify(mobileUi.deal),
+  );
   await shoot('11-mobile-tableau');
   await clickButton('☰');
   await delay(500);
@@ -843,6 +921,24 @@ try {
   await clickButton('开始新局');
   await delay(900);
 
+  // 触屏测试用一个「必定有走法」的固定局面，避免开局运气影响用例
+  await evaluate(`(() => {
+    let id = 7000;
+    const card = (suit, rank, faceUp = true) => ({ id: id += 1, suit, rank, faceUp });
+    const columns = [
+      [card('S', 9)],   // ① 可以压到 10♥ 上（点选测试）
+      [card('H', 10)],
+      [card('D', 4)],   // ② 可以压到 5♣ 上（拖动测试）
+      [card('C', 5)],
+      [card('C', 8)],   // ③ 可以自动归位到 9♠ 上（双击测试）
+    ];
+    window.__spider.load(JSON.stringify({
+      version: 1, suitCount: 1, seed: 5, columns, stock: [], sets: [],
+      score: 500, moves: 0, elapsedMs: 0, status: 'playing',
+    }));
+  })()`);
+  await delay(500);
+
   const touch = (type, points) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
   const touchTap = async (x, y) => {
     await touch('touchStart', [{ x, y }]);
@@ -892,7 +988,7 @@ try {
   const autoTapTarget = await evaluate(`(() => {
     const g = window.__spider.game();
     const st = g.state;
-    for (let col = 0; col < 10; col += 1) {
+    for (let col = 0; col < 5; col += 1) {
       const column = st.columns[col];
       for (let i = column.length - 1; i >= 0; i -= 1) {
         if (g.autoMoveTarget(col, i) !== null) return { col, i };
@@ -927,7 +1023,7 @@ try {
   await delay(400);
   const artMapping = await evaluate(`(async () => {
     const measure = async (suit) => {
-      const columns = Array.from({ length: 10 }, (_, i) => [
+      const columns = Array.from({ length: 5 }, (_, i) => [
         i === 0
           ? { id: 1, suit, rank: 1, faceUp: true }
           : { id: 10 + i, suit: 'S', rank: 3, faceUp: false },

@@ -32,8 +32,10 @@ export interface GameState {
 }
 
 export const SUITS: readonly Suit[] = ['S', 'H', 'D', 'C'] as const;
-export const COLUMN_COUNT = 10;
-export const TOTAL_SETS = 8;
+/** 牌桌列数：手机上一屏能看清 5 列（列少 → 牌大 → 好认好点） */
+export const COLUMN_COUNT = 5;
+/** 一副牌 52 张 = 4 组同花 K→A */
+export const TOTAL_SETS = 4;
 export const START_SCORE = 500;
 
 export const SUIT_LABEL: Record<Suit, string> = {
