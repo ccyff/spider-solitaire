@@ -128,6 +128,10 @@ try {
   await cdp.send('Page.enable');
   await cdp.send('Runtime.enable');
   await cdp.send('Log.enable');
+  // 关掉 HTTP 缓存：否则复用浏览器 profile 时会拿到上一次部署的旧页面，
+  // 让人误以为线上没更新（GitHub Pages 的 HTML 有 10 分钟缓存）。
+  await cdp.send('Network.enable');
+  await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
   cdp.on('Runtime.exceptionThrown', (params) => {
     const details = params.exceptionDetails ?? {};
     consoleErrors.push(
